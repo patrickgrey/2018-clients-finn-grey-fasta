@@ -1,6 +1,7 @@
 // PURPOSE:
 //  Input a search string ("CTAG") and return an array of sets that end with that string.
 //  Each set should include the header info and set characters in an object.
+//  Return new file with changes made.
 // ASSUMPTIONS:
 //  - Every set has a header directly below it.
 //  - Subset of characters only
@@ -11,35 +12,70 @@
 const fileSystem = require("fs");
 const eventStream = require("event-stream");
 
-const searchString = process.argv.slice(2)[0];
+// const searchSequence = "";
+// const replaceSequence = "";
 let cachedHeader = "";
 let cachedSequence = "";
 let sequenceArray = [];
 let totalSequenceCount = 0;
 let totalMatchingSequenceCount = 0;
 
+const getSearchSequence = () => {
+  if (!process.argv.slice(2)[0]) {
+    console.log("Error: Please provide a search sequence.");
+    throw new Error();
+  }
+  return process.argv.slice(2)[0];
+};
+
+const getReplaceSequence = () => {
+  if (!process.argv.slice(2)[1]) {
+    console.log("Error: Please provide a replace sequence.");
+    throw new Error();
+  }
+  return process.argv.slice(2)[1];
+};
+
 // Utility function
-const isAtEnd = (_text, _search) => {
-  const textUpper = _text.toUpperCase();
-  const searchUpper = _search.toUpperCase();
+const isAtSequenceEnd = (_sequence, _search) => {
   return (
-    textUpper.indexOf(searchUpper) > -1 &&
-    textUpper.substring(
-      textUpper.length - searchUpper.length,
-      textUpper.length
-    ) === searchUpper
+    _sequence.substring(_sequence.length - _search.length, _sequence.length) ===
+    _search
   );
 };
 
-// Check search text is at end of current cached sequence and add to result if is.
-const searchCachedSequence = () => {
-  if (isAtEnd(cachedSequence, searchString)) {
-    // ATCAGCAGCAACCTGGAGTAA
-    sequenceArray.push({ header: cachedHeader, set: cachedSequence });
-    totalMatchingSequenceCount++;
-  }
+// Check search text exists in and is at end of current cached sequence and add to result if is.
+const isInSequence = (_sequence, _search) => {
+  return _sequence.indexOf(_search) > -1;
+};
+
+const replaceSequence = (_sequence, _search, _replace) => {
+  return _sequence.substring(0, _sequence.length - _search.length) + _replace;
+};
+
+const addSequence = (_header, _sequence) => {
+  sequenceArray.push({ header: _header, sequence: _sequence });
+  totalMatchingSequenceCount++;
+};
+
+const resetCaches = () => {
   cachedSequence = "";
   cachedHeader = "";
+};
+
+const processCachedSequence = () => {
+  const sequence = cachedSequence.toUpperCase();
+  const search = getSearchSequence().toUpperCase();
+  if (isInSequence(sequence, search) && isAtSequenceEnd(sequence, search)) {
+    // Replace search sequence at end
+    const replacedSequence = replaceSequence(
+      sequence,
+      search,
+      getReplaceSequence()
+    );
+    addSequence(cachedHeader, replacedSequence);
+  }
+  resetCaches();
 };
 
 const stream = fileSystem
@@ -50,21 +86,20 @@ const stream = fileSystem
       .mapSync(function(line) {
         // New set found so check the cached set and add to array if passes.
         if (line.charAt(0) === ">") {
-          searchCachedSequence();
+          processCachedSequence();
           cachedHeader = line;
-          totalSequenceCount++;
-          return false;
-        }
-        // Blank line, ignore
-        if (/^\s*$/.test(line)) {
           return false;
         }
         // Ignore comments
         if (line.charAt(0) === ";") {
           return false;
         }
+        // Ignore blank lines
+        if (line === "") {
+          return false;
+        }
 
-        // TODO: Check if line only contains specified characters: ACTG
+        // TODO: Check if line only contains specified characters: ACTG - REGEX?
 
         // If no other conditions met, must be sequence line so add to current cached sequence.
         cachedSequence += line;
@@ -74,9 +109,8 @@ const stream = fileSystem
         console.log("Error while reading file.", err);
       })
       .on("end", function() {
-        console.log("Read entire file.");
+        processCachedSequence();
         console.log(sequenceArray);
-        console.log("Total sequences: ", totalSequenceCount);
         console.log("Total sequences matching: ", totalMatchingSequenceCount);
       })
   );
