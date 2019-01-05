@@ -6,8 +6,14 @@
 //  - Every set has a header directly below it.
 //  - Subset of characters only
 // NEW FEAURES:
-//  Allow string replacement
 //  Web interface / API with JSON return
+// TODO:
+//  CHANGE READ AND WRITE TO STREAMS!!
+//    https://itnext.io/using-node-js-to-read-really-really-large-files-pt-1-d2057fe76b33
+//
+//  Check for correct characters only
+//  Compare to spec for more checks
+//  Add tests
 
 const fileSystem = require("fs");
 const eventStream = require("event-stream");
@@ -17,6 +23,7 @@ const eventStream = require("event-stream");
 let cachedHeader = "";
 let cachedSequence = "";
 let sequenceArray = [];
+let sequenceString = "";
 let totalSequenceCount = 0;
 let totalMatchingSequenceCount = 0;
 
@@ -44,17 +51,13 @@ const isAtSequenceEnd = (_sequence, _search) => {
   );
 };
 
-// Check search text exists in and is at end of current cached sequence and add to result if is.
-const isInSequence = (_sequence, _search) => {
-  return _sequence.indexOf(_search) > -1;
-};
-
 const replaceSequence = (_sequence, _search, _replace) => {
   return _sequence.substring(0, _sequence.length - _search.length) + _replace;
 };
 
 const addSequence = (_header, _sequence) => {
   sequenceArray.push({ header: _header, sequence: _sequence });
+  sequenceString += _header + "\n" + _sequence + "\n";
   totalMatchingSequenceCount++;
 };
 
@@ -66,8 +69,7 @@ const resetCaches = () => {
 const processCachedSequence = () => {
   const sequence = cachedSequence.toUpperCase();
   const search = getSearchSequence().toUpperCase();
-  if (isInSequence(sequence, search) && isAtSequenceEnd(sequence, search)) {
-    // Replace search sequence at end
+  if (isAtSequenceEnd(sequence, search)) {
     const replacedSequence = replaceSequence(
       sequence,
       search,
@@ -78,16 +80,26 @@ const processCachedSequence = () => {
   resetCaches();
 };
 
+const createFile = content => {
+  fileSystem.writeFile("changedFile.json", JSON.stringify(content), err => {
+    if (err) {
+      console.error(err);
+      return;
+    }
+    console.log("Success!!");
+  });
+};
+
 const stream = fileSystem
   .createReadStream("pig.fasta")
   .pipe(eventStream.split())
   .pipe(
     eventStream
       .mapSync(function(line) {
-        // New set found so check the cached set and add to array if passes.
         if (line.charAt(0) === ">") {
           processCachedSequence();
           cachedHeader = line;
+          totalSequenceCount++;
           return false;
         }
         // Ignore comments
@@ -111,6 +123,8 @@ const stream = fileSystem
       .on("end", function() {
         processCachedSequence();
         console.log(sequenceArray);
+        console.log("Total sequences: ", totalSequenceCount);
         console.log("Total sequences matching: ", totalMatchingSequenceCount);
+        createFile(sequenceArray);
       })
   );
