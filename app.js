@@ -18,14 +18,13 @@
 const fileSystem = require("fs");
 const eventStream = require("event-stream");
 
-// const searchSequence = "";
-// const replaceSequence = "";
 let cachedHeader = "";
 let cachedSequence = "";
-let sequenceArray = [];
 let sequenceString = "";
+let sequenceArray = [];
 let totalSequenceCount = 0;
 let totalMatchingSequenceCount = 0;
+const allowedCharacters = "ACTG";
 
 const getSearchSequence = () => {
   if (!process.argv.slice(2)[0]) {
@@ -43,12 +42,22 @@ const getReplaceSequence = () => {
   return process.argv.slice(2)[1];
 };
 
-// Utility function
+const getAllowedCharacters = () => {
+  return allowedCharacters;
+};
+
 const isAtSequenceEnd = (_sequence, _search) => {
   return (
     _sequence.substring(_sequence.length - _search.length, _sequence.length) ===
     _search
   );
+};
+
+const isClean = (_sequence, _regexString) => {
+  const regex = new RegExp("[^" + _regexString + "]", "g");
+  const result = regex.test(_sequence);
+  // const result = /[^ACGT]/g.test(_sequence);
+  return !result;
 };
 
 const replaceSequence = (_sequence, _search, _replace) => {
@@ -69,7 +78,10 @@ const resetCaches = () => {
 const processCachedSequence = () => {
   const sequence = cachedSequence.toUpperCase();
   const search = getSearchSequence().toUpperCase();
-  if (isAtSequenceEnd(sequence, search)) {
+  if (
+    isAtSequenceEnd(sequence, search) &&
+    isClean(sequence, getAllowedCharacters())
+  ) {
     const replacedSequence = replaceSequence(
       sequence,
       search,
@@ -91,7 +103,8 @@ const createFile = content => {
 };
 
 const stream = fileSystem
-  .createReadStream("pig.fasta")
+  // .createReadStream("pig.fasta")
+  .createReadStream("pig-short.fasta")
   .pipe(eventStream.split())
   .pipe(
     eventStream
@@ -122,7 +135,7 @@ const stream = fileSystem
       })
       .on("end", function() {
         processCachedSequence();
-        console.log(sequenceArray);
+        // console.log(sequenceArray);
         console.log("Total sequences: ", totalSequenceCount);
         console.log("Total sequences matching: ", totalMatchingSequenceCount);
         createFile(sequenceArray);
