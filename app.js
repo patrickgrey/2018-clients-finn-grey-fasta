@@ -17,6 +17,7 @@
 
 const fileSystem = require("fs");
 const eventStream = require("event-stream");
+const fileName = "pig-short.fasta";
 
 let cachedHeader = "";
 let cachedSequence = "";
@@ -104,7 +105,7 @@ const createFile = content => {
 
 const stream = fileSystem
   // .createReadStream("pig.fasta")
-  .createReadStream("pig-short.fasta")
+  .createReadStream(fileName)
   .pipe(eventStream.split())
   .pipe(
     eventStream
