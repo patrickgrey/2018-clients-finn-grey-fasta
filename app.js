@@ -4,21 +4,18 @@
 //  Return new file with changes made.
 // ASSUMPTIONS:
 //  - Every set has a header directly below it.
-//  - Subset of characters only
 // NEW FEAURES:
 //  Web interface / API with JSON return
 // TODO:
 //  CHANGE READ AND WRITE TO STREAMS!!
 //    https://itnext.io/using-node-js-to-read-really-really-large-files-pt-1-d2057fe76b33
-//
-//  Check for correct characters only
 //  Compare to spec for more checks
 //  Add tests
 
 const fileSystem = require("fs");
 const eventStream = require("event-stream");
-const fileName = "pig-short.fasta";
 
+const fileName = "pig-short.fasta";
 let cachedHeader = "";
 let cachedSequence = "";
 let sequenceString = "";
@@ -93,43 +90,37 @@ const processCachedSequence = () => {
   resetCaches();
 };
 
-const createFile = content => {
-  fileSystem.writeFile("changedFile.json", JSON.stringify(content), err => {
-    if (err) {
-      console.error(err);
-      return;
-    }
-    console.log("Success!!");
-  });
+const isNotContent = line => {
+  return line.charAt(0) === ";" || line === "";
+};
+
+const isHeader = line => {
+  return line.charAt(0) === ">";
+};
+
+const processLine = line => {
+  if (isNotContent(line)) {
+    return line;
+  }
+
+  if (isHeader(line)) {
+    processCachedSequence();
+    cachedHeader = line;
+    totalSequenceCount++;
+    return line;
+  }
+
+  cachedSequence += line;
+  return line;
 };
 
 const stream = fileSystem
-  // .createReadStream("pig.fasta")
   .createReadStream(fileName)
   .pipe(eventStream.split())
   .pipe(
     eventStream
       .mapSync(function(line) {
-        if (line.charAt(0) === ">") {
-          processCachedSequence();
-          cachedHeader = line;
-          totalSequenceCount++;
-          return false;
-        }
-        // Ignore comments
-        if (line.charAt(0) === ";") {
-          return false;
-        }
-        // Ignore blank lines
-        if (line === "") {
-          return false;
-        }
-
-        // TODO: Check if line only contains specified characters: ACTG - REGEX?
-
-        // If no other conditions met, must be sequence line so add to current cached sequence.
-        cachedSequence += line;
-        return false;
+        processLine(line);
       })
       .on("error", function(err) {
         console.log("Error while reading file.", err);
@@ -139,6 +130,16 @@ const stream = fileSystem
         // console.log(sequenceArray);
         console.log("Total sequences: ", totalSequenceCount);
         console.log("Total sequences matching: ", totalMatchingSequenceCount);
-        createFile(sequenceArray);
+        // createFile(sequenceArray);
       })
   );
+
+const createFile = content => {
+  fileSystem.writeFile("changedFile.json", JSON.stringify(content), err => {
+    if (err) {
+      console.error(err);
+      return;
+    }
+    console.log("Success!!");
+  });
+};

@@ -4,13 +4,14 @@
   "description": "parse dna files",
   "main": "app.js",
   "scripts": {
-    "test": "ava --verbose"
+    "test": "nyc ava --verbose"
   },
   "author": "Patrick Grey",
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
     "ava": "^1.0.1",
-    "event-stream": "3.3.4"
+    "event-stream": "3.3.4",
+    "nyc": "^13.1.0"
   }
 }
