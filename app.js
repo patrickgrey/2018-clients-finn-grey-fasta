@@ -2,6 +2,8 @@
 //  Input a search string ("CTAG") and return an array of sets that end with that string.
 //  Each set should include the header info and set characters in an object.
 //  Return new file with changes made.
+// USE:
+//   node app
 // ASSUMPTIONS:
 //  - Every set has a header directly below it.
 // NEW FEAURES:
@@ -113,24 +115,24 @@ const processLine = line => {
   cachedSequence += line;
   return line;
 };
-
+// https://thlorenz.com/blog/the-power-of-nodejs-streams-and-the-event-stream-module/
 const stream = fileSystem
   .createReadStream(fileName)
   .pipe(eventStream.split())
   .pipe(
     eventStream
-      .mapSync(function(line) {
+      .mapSync(line => {
         processLine(line);
       })
-      .on("error", function(err) {
+      .on("error", err => {
         console.log("Error while reading file.", err);
       })
-      .on("end", function() {
+      .on("end", () => {
         processCachedSequence();
         // console.log(sequenceArray);
         console.log("Total sequences: ", totalSequenceCount);
         console.log("Total sequences matching: ", totalMatchingSequenceCount);
-        // createFile(sequenceArray);
+        createFile(sequenceArray);
       })
   );
 
