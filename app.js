@@ -14,6 +14,14 @@
 //  Compare to spec for more checks
 //  Add tests
 
+let a = 3;
+let b = 2;
+a + b;
+
+function add(a, b) {
+  return a + b;
+}
+
 const fileSystem = require("fs");
 const eventStream = require("event-stream");
 
